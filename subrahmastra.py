@@ -9,7 +9,7 @@ import aiohttp
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins="*")
 
 # Default configuration
 API_URL = "https://sitareuniv.digiicampus.com/api/userManagement/change/password"
