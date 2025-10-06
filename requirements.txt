@@ -5,3 +5,4 @@ flask-socketio==5.3.3
 aiohttp==3.9.5
 eventlet==0.33.3
 gunicorn==22.0.0
+gevent-websocket==0.10.1
