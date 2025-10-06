@@ -4,3 +4,4 @@ eventlet==0.35.2
 aiohttp==3.9.5
 asyncio==3.4.3
 gunicorn==22.0.0
+gevent==22.10.2
