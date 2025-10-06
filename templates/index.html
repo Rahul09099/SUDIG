@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+    <title>OTP Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        input, button { padding: 5px; margin: 5px; }
+        .advanced { display: none; margin-top: 10px; border: 1px solid #ccc; padding: 10px; }
+        table { border-collapse: collapse; width: 100%; max-height: 400px; overflow-y: auto; display:block; }
+        th, td { border:1px solid #ddd; padding: 5px; word-break: break-word; }
+        th { background:#f2f2f2; }
+        tbody { display:block; max-height: 400px; overflow-y: auto; }
+        tbody tr { display: table; width: 100%; table-layout: fixed; }
+        tr.success { background:#c8e6c9; }
+        tr.stopped { background:#ffcdd2; }
+        tr.failed { background:#ffe0b2; }
+        tr.attempted { background:#e0e0e0; }
+    </style>
+</head>
+<body>
+<h2>OTP Dashboard</h2>
+
+<label>Phone Number:</label>
+<input type="text" id="phone" placeholder="Enter number">
+
+<button onclick="toggleAdvanced()">Advanced Settings</button>
+
+<div class="advanced" id="advanced">
+    <label>Start OTP:</label><input type="number" id="start"><br>
+    <label>Max OTP:</label><input type="number" id="max"><br>
+    <label>Concurrent Requests:</label><input type="number" id="concurrent"><br>
+    <label>Cookie:</label><input type="text" id="cookie" placeholder="Leave blank for default"><br>
+</div>
+
+<button onclick="startAttack()">Start</button>
+<button onclick="stopAttack()">Stop</button>
+
+<table>
+    <thead>
+        <tr>
+            <th>OTP</th><th>Status</th><th>Response</th>
+        </tr>
+    </thead>
+    <tbody id="otpTable"></tbody>
+</table>
+
+<script>
+const socket = io();
+
+function toggleAdvanced() {
+    const adv = document.getElementById('advanced');
+    adv.style.display = (adv.style.display==='none') ? 'block' : 'none';
+}
+
+function startAttack() {
+    const data = {
+        phone: document.getElementById('phone').value,
+        start: document.getElementById('start').value,
+        max: document.getElementById('max').value,
+        concurrent: document.getElementById('concurrent').value,
+        cookie: document.getElementById('cookie').value
+    };
+    fetch('/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+}
+
+function stopAttack() {
+    fetch('/stop', {method:'POST'});
+}
+
+// Listen to OTP updates
+socket.on('log', data => {
+    const tr = document.createElement('tr');
+    tr.className = data.status.toLowerCase();
+    tr.innerHTML = `<td>${data.otp}</td><td>${data.status}</td><td>${data.response}</td>`;
+    document.getElementById('otpTable').prepend(tr);
+    tr.scrollIntoView({behavior:"smooth", block:"start"});
+});
+
+socket.on('finished', data => {
+    alert(`Finished: ${data.status} OTP=${data.otp_used}`);
+});
+</script>
+</body>
+</html>
