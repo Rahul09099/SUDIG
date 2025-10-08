@@ -16,7 +16,8 @@ NEW_PASSWORD = "Sitare@09099"
 # List of server messages that should stop the workers
 STOP_MESSAGES = [
     "Invalid request, Otp already used",
-    "This is already used password"  # <-- new message to stop
+    "This is already used password",
+    "Password must be at least 8 characters
 ]
 
 
