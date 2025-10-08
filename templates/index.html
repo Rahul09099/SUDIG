@@ -174,7 +174,7 @@
         <button id="toggleAdvanced">Advanced ▼</button>
 
         <div id="advancedOptions">
-            <label>New Password: <input type="text" id="newPassword" value="xxxxxxx"></label>
+            <input type="password" id="newPassword" placeholder="Enter password">
             <label>Start OTP: <input type="number" id="start" value="xxxxxx"></label>
             <label>End OTP: <input type="number" id="end" value="xxxxxx"></label>
             <label>Concurrent: <input type="number" id="concurrent" value="10"></label>
@@ -232,13 +232,14 @@
 
         startBtn.addEventListener('click', () => {
             const config = {
-                phone: document.getElementById('phone').value,
-                newPassword: document.getElementById('newPassword')?.value || "Xyzxyz@09099",
-                start: parseInt(document.getElementById('start')?.value || "10000"),
-                end: parseInt(document.getElementById('end')?.value || "999999"),
-                concurrent: parseInt(document.getElementById('concurrent')?.value || "10"),
-                delay: parseFloat(document.getElementById('delay')?.value || "0.09")
-            };
+                            phone: document.getElementById('phone')?.value || null,
+                            newPassword: document.getElementById('newPassword')?.value || null,
+                            start: parseInt(document.getElementById('start')?.value) || null,
+                            end: parseInt(document.getElementById('end')?.value) || null,
+                            concurrent: parseInt(document.getElementById('concurrent')?.value) || null,
+                            delay: parseFloat(document.getElementById('delay')?.value) || null
+                        };
+
             socket.emit('start', config);
         });
 
