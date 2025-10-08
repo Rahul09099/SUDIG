@@ -17,7 +17,7 @@ NEW_PASSWORD = "Xxxxx@09099"
 STOP_MESSAGES = [
     "Invalid request, Otp already used",
     "This is already used password",
-    "Password must be at least 8 characters
+    "Password must be at least 8 characters"
 ]
 
 
