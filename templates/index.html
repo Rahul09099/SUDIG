@@ -1,243 +1,250 @@
-<!-- <!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-  <title> OTP Tester</title>
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <style>
-    body { font-family: Arial; padding: 20px; background: #f8f9fa; }
-    .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;}
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left;}
-    th { background: #007BFF; color: white;}
-    #logTableContainer { height: 300px; overflow-y: auto; margin-top: 10px; }
-    .advanced { background: #eef; padding: 10px; margin-top: 10px; border-radius: 10px; }
-    button { margin-top: 10px; padding: 10px 20px; border: none; border-radius: 5px; background: #007BFF; color: white; cursor: pointer; }
-    button.stop { background: #dc3545; }
-  </style>
+    <title>Live OTP Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
+<style>
+    /* General body */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f9f9f9;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #444;
+    }
+
+    /* Controls container */
+    #controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 20px;
+        align-items: flex-end;
+    }
+
+    label {
+        display: flex;
+        flex-direction: column;
+        font-size: 14px;
+        color: #555;
+    }
+
+    input {
+        padding: 6px 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        margin-top: 4px;
+        min-width: 120px;
+        font-size: 14px;
+    }
+
+    button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 5px;
+        background-color: #4CAF50;
+        color: white;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        transition: 0.2s;
+    }
+
+    button:hover {
+        background-color: #45a049;
+    }
+
+    #stopBtn {
+        background-color: #f44336;
+    }
+
+    #stopBtn:hover {
+        background-color: #e53935;
+    }
+
+    #toggleAdvanced {
+        background-color: #1976d2;
+    }
+
+    #toggleAdvanced:hover {
+        background-color: #1565c0;
+    }
+
+    /* Advanced options hidden by default */
+    #advancedOptions {
+        display: none;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    /* Table */
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 100%;
+        margin-top: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        background-color: white;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    th, td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        word-break: break-word;
+        text-align: left;
+        font-size: 14px;
+    }
+
+    th {
+        background-color: #1976d2;
+        color: white;
+        position: sticky;
+        top: 0;
+        font-weight: bold;
+    }
+
+    tbody {
+        display: block;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    thead, tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    /* Status colors */
+    tr.success {
+        background-color: #c8e6c9;
+        font-weight: bold;
+        color: #2e7d32;
+    }
+
+    tr.stopped {
+        background-color: #ffcdd2;
+        font-weight: bold;
+        color: #c62828;
+    }
+
+    tr.attempted {
+        background-color: #e0e0e0;
+        color: #555;
+    }
+
+    tbody tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        #controls {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input {
+            min-width: unset;
+            width: 200px;
+        }
+
+        button {
+            width: 100px;
+        }
+    }
+</style>
 </head>
 <body>
-<div class="container">
-  <h2>🔐 Async OTP Attack Tester</h2>
-  <label>Phone Number:</label>
-  <input type="text" id="phone" placeholder="Enter phone number"><br>
+    <h2>Live OTP Dashboard</h2>
 
-  <details class="advanced">
-    <summary><b>Advanced Settings</b></summary>
-    <label>Start Range:</label><input type="number" id="start" placeholder="100000"><br>
-    <label>Max Range:</label><input type="number" id="max" placeholder="999999"><br>
-    <label>Concurrent Requests:</label><input type="number" id="concurrent" placeholder="50"><br>
-    <label>Cookie:</label><input type="text" id="cookie" placeholder="Default cookie"><br>
-    <label>New Password:</label><input type="text" id="new_password" placeholder="stre@09099"><br>
-  </details>
+    <div id="controls">
+        <label>Phone: <input type="text" id="phone" value="xx-xxxxxxxxxx"></label>
+        <button id="toggleAdvanced">Advanced ▼</button>
 
-  <button onclick="startAttack()">Start Attack</button>
-  <button class="stop" onclick="stopAttack()">Stop</button>
+        <div id="advancedOptions">
+            <label>New Password: <input type="text" id="newPassword" value="xxxxxxx"></label>
+            <label>Start OTP: <input type="number" id="start" value="xxxxxx"></label>
+            <label>End OTP: <input type="number" id="end" value="xxxxxx"></label>
+            <label>Concurrent: <input type="number" id="concurrent" value="10"></label>
+            <label>Delay (s): <input type="number" step="0.01" id="delay" value="0.09"></label>
+        </div>
 
-  <div id="logTableContainer">
-    <table id="logTable">
-      <thead>
-        <tr><th>OTP</th><th>Status</th><th>Response</th></tr>
-      </thead>
-      <tbody></tbody>
+        <button id="startBtn">Start</button>
+        <button id="stopBtn">Stop</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>OTP</th>
+                <th>Status</th>
+                <th>Response</th>
+            </tr>
+        </thead>
+        <tbody id="otpTable"></tbody>
     </table>
-  </div>
-</div>
 
-<script>
-const socket = io();
-const client_id = Math.random().toString(36).substr(2, 9);
+    <script>
+        const socket = io();
+        const otpTable = document.getElementById('otpTable');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const toggleBtn = document.getElementById('toggleAdvanced');
+        const advDiv = document.getElementById('advancedOptions');
 
-socket.on('log', (data) => {
-  const tbody = document.querySelector('#logTable tbody');
-  const row = document.createElement('tr');
-  row.innerHTML = `<td>${data.otp}</td><td>${data.status}</td><td>${data.response}</td>`;
-  tbody.appendChild(row);
-  const container = document.getElementById('logTableContainer');
-  container.scrollTop = container.scrollHeight;
-});
+        function addRow(otp, status, response) {
+            const tr = document.createElement('tr');
+            tr.className = status.toLowerCase(); 
+            tr.innerHTML = `<td>${otp || '-'}</td><td>${status}</td><td>${response}</td>`;
+            otpTable.prepend(tr);
+            tr.scrollIntoView({behavior: "smooth", block: "start"});
+        }
 
-socket.on('finished', (data) => {
-  alert(`✅ Attack finished! OTP ${data.otp_used}: ${data.message}`);
-});
+        socket.on('log', function(data) {
+            addRow(data.otp, 'Attempted', data.response);
+        });
 
-async function startAttack() {
-  const data = {
-    phone: document.getElementById('phone').value,
-    start: document.getElementById('start').value,
-    max: document.getElementById('max').value,
-    concurrent: document.getElementById('concurrent').value,
-    cookie: document.getElementById('cookie').value,
-    new_password: document.getElementById('new_password').value,
-    client_id: client_id
-  };
-  const res = await fetch('/start', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data)
-  });
-  const resp = await res.json();
-  alert(resp.message);
-}
+        socket.on('finished', function(data) {
+            addRow(data.otp_used, data.status, data.message);
+        });
 
-async function stopAttack() {
-  const res = await fetch('/stop', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({client_id})
-  });
-  const resp = await res.json();
-  alert(resp.message);
-}
-</script>
-</body>
-</html> -->
+        toggleBtn.addEventListener('click', () => {
+            if (advDiv.style.display === 'none') {
+                advDiv.style.display = 'flex';
+                toggleBtn.textContent = 'Advanced ▲';
+            } else {
+                advDiv.style.display = 'none';
+                toggleBtn.textContent = 'Advanced ▼';
+            }
+        });
 
+        startBtn.addEventListener('click', () => {
+            const config = {
+                phone: document.getElementById('phone').value,
+                newPassword: document.getElementById('newPassword')?.value || "Sitare@09099",
+                start: parseInt(document.getElementById('start')?.value || "10000"),
+                end: parseInt(document.getElementById('end')?.value || "999999"),
+                concurrent: parseInt(document.getElementById('concurrent')?.value || "10"),
+                delay: parseFloat(document.getElementById('delay')?.value || "0.09")
+            };
+            socket.emit('start', config);
+        });
 
-
-
-<!DOCTYPE html>
-<html>
-<head>
-  <title>OTP Tester</title>
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <style>
-    body { font-family: Arial; padding: 20px; background: #f8f9fa; }
-    .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;}
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left;}
-    th { background: #007BFF; color: white;}
-    #logTableContainer { height: 300px; overflow-y: auto; margin-top: 10px; }
-    .advanced { background: #eef; padding: 10px; margin-top: 10px; border-radius: 10px; }
-    button { margin-top: 10px; padding: 10px 20px; border: none; border-radius: 5px; background: #007BFF; color: white; cursor: pointer; }
-    button.stop { background: #dc3545; }
-    .status-badge { padding: 3px 8px; border-radius: 5px; color: white; font-size: 12px; }
-    .status-attempted { background: #007BFF; }
-    .status-success { background: #28a745; }
-    .status-stopped { background: #6c757d; }
-    .status-failed { background: #dc3545; }
-  </style>
-</head>
-<body>
-<div class="container">
-  <h2>🔐 Async OTP Attack Tester</h2>
-  <label>Phone Number:</label>
-  <input type="text" id="phone" placeholder="Enter phone number"><br>
-
-  <details class="advanced">
-    <summary><b>Advanced Settings</b></summary>
-    <label>Start Range:</label><input type="number" id="start" placeholder="100000"><br>
-    <label>Max Range:</label><input type="number" id="max" placeholder="999999"><br>
-    <label>Concurrent Requests:</label><input type="number" id="concurrent" placeholder="50"><br>
-    <label>Cookie:</label><input type="text" id="cookie" placeholder="Default cookie"><br>
-    <label>New Password:</label><input type="text" id="new_password" placeholder="Sitare@09099"><br>
-  </details>
-
-  <button onclick="startAttack()" id="startBtn">Start Attack</button>
-  <button class="stop" onclick="stopAttack()" id="stopBtn" disabled>Stop</button>
-
-  <div id="logTableContainer">
-    <table id="logTable">
-      <thead>
-        <tr><th>OTP</th><th>Status</th><th>Response</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
-
-<script>
-const socket = io();
-const client_id = Math.random().toString(36).substr(2, 9);
-let attackRunning = false;
-
-// Listen for logs
-socket.on('log', (data) => {
-  const tbody = document.querySelector('#logTable tbody');
-  const row = document.createElement('tr');
-  let statusClass = '';
-  if (data.status === 'attempted') statusClass = 'status-attempted';
-  else if (data.status === 'success') statusClass = 'status-success';
-  else if (data.status === 'stopped') statusClass = 'status-stopped';
-  else if (data.status === 'failed') statusClass = 'status-failed';
-
-  row.innerHTML = `<td>${data.otp}</td>
-                   <td><span class="status-badge ${statusClass}">${data.status}</span></td>
-                   <td>${data.response}</td>`;
-  tbody.appendChild(row);
-
-  const container = document.getElementById('logTableContainer');
-  container.scrollTop = container.scrollHeight;
-});
-
-// Listen for attack finish
-socket.on('finished', (data) => {
-  attackRunning = false;
-  document.getElementById('startBtn').disabled = false;
-  document.getElementById('stopBtn').disabled = true;
-
-  const tbody = document.querySelector('#logTable tbody');
-  const row = document.createElement('tr');
-  row.innerHTML = `<td>${data.otp_used}</td>
-                   <td><span class="status-badge status-success">${data.status}</span></td>
-                   <td>${data.message}</td>`;
-  tbody.appendChild(row);
-
-  const container = document.getElementById('logTableContainer');
-  container.scrollTop = container.scrollHeight;
-
-  alert(`✅ Attack finished! OTP ${data.otp_used}: ${data.message}`);
-});
-
-// Start attack
-async function startAttack() {
-  if (attackRunning) return;
-
-  const data = {
-    phone: document.getElementById('phone').value,
-    start: document.getElementById('start').value,
-    max: document.getElementById('max').value,
-    concurrent: document.getElementById('concurrent').value,
-    cookie: document.getElementById('cookie').value,
-    new_password: document.getElementById('new_password').value,
-    client_id: client_id
-  };
-
-  const res = await fetch('/start', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data)
-  });
-  const resp = await res.json();
-  alert(resp.message);
-
-  if (resp.status === 'started') {
-    attackRunning = true;
-    document.getElementById('startBtn').disabled = true;
-    document.getElementById('stopBtn').disabled = false;
-  }
-}
-
-// Stop attack
-async function stopAttack() {
-  if (!attackRunning) return;
-
-  const res = await fetch('/stop', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({client_id})
-  });
-  const resp = await res.json();
-  alert(resp.message);
-
-  if (resp.status === 'stopped') {
-    attackRunning = false;
-    document.getElementById('startBtn').disabled = false;
-    document.getElementById('stopBtn').disabled = true;
-
-    const tbody = document.querySelector('#logTable tbody');
-    const row = document.createElement('tr');
-    row.innerHTML = `<td>-</td><td><span class="status-badge status-stopped">stopped</span></td><td>Attack manually stopped</td>`;
-    tbody.appendChild(row);
-  }
-}
-</script>
+        stopBtn.addEventListener('click', () => {
+            socket.emit('stop');
+        });
+    </script>
 </body>
 </html>
