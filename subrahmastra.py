@@ -12,7 +12,7 @@ sio.attach(app)
 # ----- OTP script config -----
 URL = "https://sitareuniv.digiicampus.com/api/userManagement/change/password"
 PHONE = "91-xxxxxxxxx"
-NEW_PASSWORD = "Sitare@09099"
+NEW_PASSWORD = "Xxxxx@09099"
 # List of server messages that should stop the workers
 STOP_MESSAGES = [
     "Invalid request, Otp already used",
